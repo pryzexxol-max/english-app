@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English Daily Study</title>
-    <!-- Khai báo PWA Manifest động -->
+    <title>English Daily Study - Interactive</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <style>
@@ -16,6 +15,8 @@
             --text-muted: #a0a0a0;
             --accent: #3b82f6;
             --accent-hover: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -48,19 +49,19 @@
         }
         textarea {
             width: 100%;
-            height: 120px;
+            height: 100px;
             background: rgba(0, 0, 0, 0.2);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-main);
             padding: 10px;
             font-family: monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             resize: vertical;
             box-sizing: border-box;
             margin-bottom: 10px;
         }
-        textarea:focus {
+        textarea:focus, input:focus {
             outline: none;
             border-color: var(--accent);
         }
@@ -68,12 +69,13 @@
             background-color: var(--accent);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 16px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
             width: 100%;
             transition: background 0.2s;
+            margin-top: 5px;
         }
         button:hover {
             background-color: var(--accent-hover);
@@ -86,18 +88,30 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 6px;
         }
-        ul {
-            padding-left: 20px;
-            margin: 0;
+        ul { padding-left: 20px; margin: 0; }
+        li { margin-bottom: 8px; line-height: 1.4; font-size: 0.95rem; }
+        .meta-info { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; }
+        .quiz-item { margin-bottom: 15px; }
+        .quiz-item p { margin: 0 0 5px 0; font-weight: 500; }
+        input[type="text"] {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            color: #fff;
+            box-sizing: border-box;
         }
-        li {
-            margin-bottom: 10px;
-            line-height: 1.4;
-        }
-        .meta-info {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 10px;
+        .feedback-output {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px dashed var(--accent);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            margin-top: 10px;
+            color: #93c5fd;
         }
     </style>
 </head>
@@ -108,21 +122,28 @@
 
     <!-- Khung nhập liệu bài học mới -->
     <div class="card">
-        <h3 class="section-title">📥 Nhập dữ liệu bài học (Mỗi sáng)</h3>
+        <h3 class="section-title">📥 Nhận Bài Học Từ Gemini</h3>
         <textarea id="rawInput" placeholder="Dán đoạn code định dạng từ Gemini vào đây..."></textarea>
-        <button onclick="saveAndRender()">Lưu & Cập Nhật Bài Học</button>
+        <button onclick="saveAndRender()">Lưu & Bắt Đầu Học</button>
     </div>
 
-    <!-- Khu vực hiển thị nội dung -->
+    <!-- Khu vực hiển thị nội dung bài học -->
     <div id="contentArea">
         <div class="card">
-            <p style="text-align: center; color: var(--text-muted);">Chưa có dữ liệu bài học. Hãy dán code vào ô trên và bấm lưu!</p>
+            <p style="text-align: center; color: var(--text-muted);">Chưa có bài học. Hãy dán code vào ô trên!</p>
         </div>
+    </div>
+
+    <!-- Khu vực nộp bài & Xuất Feedback phản hồi cho Gemini -->
+    <div class="card" id="feedbackCard" style="display:none;">
+        <h3 class="section-title">📤 Tổng Kết & Báo Cáo Cho Gemini</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Sau khi làm bài xong, bấm nút dưới đây để tạo mã báo cáo kết quả, sau đó copy dán lại vào khung chat với Gemini cho ngày hôm sau:</p>
+        <button onclick="generateFeedback()" style="background-color: var(--success);">Tạo Mã Báo Cáo Kết Quả</button>
+        <div id="feedbackResult"></div>
     </div>
 </div>
 
 <script>
-    // Khi mở app, load dữ liệu đã lưu trong máy (Offline)
     window.onload = function() {
         const savedData = localStorage.getItem('english_lesson_data');
         if (savedData) {
@@ -134,28 +155,24 @@
     function saveAndRender() {
         const rawText = document.getElementById('rawInput').value;
         if (!rawText.trim()) return;
-
-        // Lưu vào bộ nhớ cục bộ (Offline Storage)
         localStorage.setItem('english_lesson_data', rawText);
         renderLesson(rawText);
-        alert('Đã lưu bài học thành công!');
+        document.getElementById('feedbackCard').style.display = 'block';
+        alert('Đã lưu bài học thành công! Chúc bạn học tốt.');
     }
 
     function renderLesson(text) {
         const area = document.getElementById('contentArea');
-
-        // Trích xuất Day
+        
         const dayMatch = text.match(/#day:\s*(.*)/);
         const dayNum = dayMatch ? dayMatch[1].trim() : "1";
 
-        // Trích xuất Vocabulary
+        // Trích xuất Vocab
         let vocabHTML = "";
         const vocabSection = text.split('#vocabulary:')[1] ? text.split('#vocabulary:')[1].split('#grammar:')[0] : "";
         if (vocabSection) {
             const lines = vocabSection.trim().split('\n').filter(l => l.trim().startsWith('-'));
             vocabHTML = "<ul>" + lines.map(l => `<li>${l.replace('-', '').trim()}</li>`).join('') + "</ul>";
-        } else {
-            vocabHTML = "<p>Không có từ vựng.</p>";
         }
 
         // Trích xuất Grammar
@@ -164,11 +181,19 @@
         if (grammarSection) {
             const lines = grammarSection.trim().split('\n').filter(l => l.trim().startsWith('-'));
             grammarHTML = "<ul>" + lines.map(l => `<li>${l.replace('-', '').trim()}</li>`).join('') + "</ul>";
-        } else {
-            grammarHTML = "<p>Không có ngữ pháp.</p>";
         }
 
-        // Đổ ra giao diện thẻ Card
+        // Trích xuất Quiz (Giả lập khu vực điền đáp án)
+        let quizHTML = `<p style="color: var(--text-muted);">Phần trắc nghiệm ôn tập từ vựng:</p>`;
+        for(let i=1; i<=5; i++) {
+            quizHTML += `
+                <div class="quiz-item">
+                    <p>Câu ${i}: Điền từ thích hợp vào chỗ trống...</p>
+                    <input type="text" class="quiz-answer" data-id="${i}" placeholder="Nhập đáp án...">
+                </div>
+            `;
+        }
+
         area.innerHTML = `
             <div class="card">
                 <div class="meta-info">📅 Ngày học: Day ${dayNum}</div>
@@ -179,6 +204,23 @@
                 <h3 class="section-title">⚙️ Cấu trúc ngữ pháp</h3>
                 ${grammarHTML}
             </div>
+            <div class="card">
+                <h3 class="section-title">✍️ Bài tập thực hành</h3>
+                ${quizHTML}
+            </div>
+        `;
+        document.getElementById('feedbackCard').style.display = 'block';
+    }
+
+    function generateFeedback() {
+        const answers = document.querySelectorAll('.quiz-answer');
+        let summary = "#session_feedback:\n- status: completed\n- notes: Đã hoàn thành bài tập trên app offline.";
+        
+        // Tạo đoạn text gọn gàng để user copy
+        const outputDiv = document.getElementById('feedbackResult');
+        outputDiv.innerHTML = `
+            <div class="feedback-output" id="copyText">${summary}</div>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('copyText').innerText); alert('Đã copy mã báo cáo! Hãy dán vào khung chat với Gemini.');" style="background-color: #8b5cf6; margin-top: 8px;">📋 Copy Mã Báo Cáo</button>
         `;
     }
 </script>
