@@ -1,4 +1,4 @@
-{ "description": "Ứng dụng giúp bạn học tiếng Anh hiệu quả qua các bài học, ví dụ và bài tập hàng ngày.","id": "/english-app/",
+{ "description": "Ứng dụng giúp bạn học tiếng Anh hiệu quả qua các bài học, ví dụ và bài tập hàng ngày.","id": "/english-app/","orientation": "portrait",
   "name": "English Daily Study",
   "short_name": "EnglishApp",
   "start_url": "/index.html",
