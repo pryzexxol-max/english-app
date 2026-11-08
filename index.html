@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Daily Study</title>
+    <!-- Khai báo PWA Manifest động -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+        .section-title {
+            font-size: 1.1rem;
+            color: var(--accent);
+            margin-top: 0;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+        ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+        li {
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .meta-info {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 English Daily Study</h1>
+
+    <!-- Khung nhập liệu bài học mới -->
+    <div class="card">
+        <h3 class="section-title">📥 Nhập dữ liệu bài học (Mỗi sáng)</h3>
+        <textarea id="rawInput" placeholder="Dán đoạn code định dạng từ Gemini vào đây..."></textarea>
+        <button onclick="saveAndRender()">Lưu & Cập Nhật Bài Học</button>
+    </div>
+
+    <!-- Khu vực hiển thị nội dung -->
+    <div id="contentArea">
+        <div class="card">
+            <p style="text-align: center; color: var(--text-muted);">Chưa có dữ liệu bài học. Hãy dán code vào ô trên và bấm lưu!</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Khi mở app, load dữ liệu đã lưu trong máy (Offline)
+    window.onload = function() {
+        const savedData = localStorage.getItem('english_lesson_data');
+        if (savedData) {
+            document.getElementById('rawInput').value = savedData;
+            renderLesson(savedData);
+        }
+    };
+
+    function saveAndRender() {
+        const rawText = document.getElementById('rawInput').value;
+        if (!rawText.trim()) return;
+
+        // Lưu vào bộ nhớ cục bộ (Offline Storage)
+        localStorage.setItem('english_lesson_data', rawText);
+        renderLesson(rawText);
+        alert('Đã lưu bài học thành công!');
+    }
+
+    function renderLesson(text) {
+        const area = document.getElementById('contentArea');
+
+        // Trích xuất Day
+        const dayMatch = text.match(/#day:\s*(.*)/);
+        const dayNum = dayMatch ? dayMatch[1].trim() : "1";
+
+        // Trích xuất Vocabulary
+        let vocabHTML = "";
+        const vocabSection = text.split('#vocabulary:')[1] ? text.split('#vocabulary:')[1].split('#grammar:')[0] : "";
+        if (vocabSection) {
+            const lines = vocabSection.trim().split('\n').filter(l => l.trim().startsWith('-'));
+            vocabHTML = "<ul>" + lines.map(l => `<li>${l.replace('-', '').trim()}</li>`).join('') + "</ul>";
+        } else {
+            vocabHTML = "<p>Không có từ vựng.</p>";
+        }
+
+        // Trích xuất Grammar
+        let grammarHTML = "";
+        const grammarSection = text.split('#grammar:')[1] ? text.split('#grammar:')[1].split('#review_vocab_quiz:')[0] : "";
+        if (grammarSection) {
+            const lines = grammarSection.trim().split('\n').filter(l => l.trim().startsWith('-'));
+            grammarHTML = "<ul>" + lines.map(l => `<li>${l.replace('-', '').trim()}</li>`).join('') + "</ul>";
+        } else {
+            grammarHTML = "<p>Không có ngữ pháp.</p>";
+        }
+
+        // Đổ ra giao diện thẻ Card
+        area.innerHTML = `
+            <div class="card">
+                <div class="meta-info">📅 Ngày học: Day ${dayNum}</div>
+                <h3 class="section-title">📚 Từ vựng mới</h3>
+                ${vocabHTML}
+            </div>
+            <div class="card">
+                <h3 class="section-title">⚙️ Cấu trúc ngữ pháp</h3>
+                ${grammarHTML}
+            </div>
+        `;
+    }
+</script>
+
+</body>
+</html>
